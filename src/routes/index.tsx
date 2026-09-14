@@ -34,8 +34,53 @@ function Index() {
   const [errorMessage, setErrorMessage] = useState("");
   const [preview, setPreview] = useState("");
   const [lastSubmitted, setLastSubmitted] = useState("");
+  const parentOriginRef = useRef<string>("*");
 
   const isProcessing = status === "capturing" || status === "uploading";
+
+  function notifyParent(nextStatus: typeof status, message?: string) {
+    if (typeof window === "undefined") return;
+    window.parent.postMessage(
+      {
+        type: "REVIEW_CAPTURE_STATUS",
+        payload: {
+          status: nextStatus,
+          message,
+          timestamp: new Date().toISOString(),
+          pageUrl: window.location.href,
+        },
+      },
+      parentOriginRef.current
+    );
+  }
+
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (!event.data || typeof event.data !== "object") return;
+
+      if (event.data.type === "REVIEW_CAPTURE_CONFIG") {
+        const payload = event.data.payload ?? {};
+        if (typeof payload.endpoint === "string") setEndpoint(payload.endpoint);
+        if (typeof payload.apiKey === "string") setApiKey(payload.apiKey);
+        if (typeof payload.reviewer === "string") setReviewer(payload.reviewer);
+        if (typeof payload.notes === "string") setNotes(payload.notes);
+        if (typeof payload.includeMetadata === "boolean") setIncludeMetadata(payload.includeMetadata);
+        if (typeof payload.hideSettings === "boolean") setShowSettings(!payload.hideSettings);
+        if (event.origin && event.origin !== "null") {
+          parentOriginRef.current = event.origin;
+        }
+        notifyParent(status, "Configuration received");
+      }
+
+      if (event.data.type === "REVIEW_CAPTURE_TRIGGER") {
+        captureAndSubmit();
+      }
+    }
+
+    window.addEventListener("message", handleMessage);
+    notifyParent("idle", "Review Capture iframe ready");
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
   async function captureAndSubmit() {
     setErrorMessage("");
