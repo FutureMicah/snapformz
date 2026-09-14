@@ -90,6 +90,7 @@ function Index() {
   async function captureAndSubmit() {
     setErrorMessage("");
     setStatus("capturing");
+    notifyParent("capturing", "Capturing full-page screenshot");
 
     try {
       const destination = endpoint.trim();
@@ -112,6 +113,7 @@ function Index() {
 
       setPreview(dataUrl);
       setStatus("uploading");
+      notifyParent("uploading", `Uploading screenshot to ${destinationUrl.hostname}`);
       const response = await fetch(destination, {
         method: "POST",
         headers: apiKey.trim() ? { Authorization: `Bearer ${apiKey.trim()}` } : {},
@@ -135,10 +137,13 @@ function Index() {
       if (!response.ok) throw new Error(`The review endpoint returned ${response.status}.`);
       setLastSubmitted(new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
       setStatus("success");
+      notifyParent("success", "Screenshot submitted successfully");
       toast.success("Screenshot submitted successfully");
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "The screenshot could not be submitted.");
+      const message = error instanceof Error ? error.message : "The screenshot could not be submitted.";
+      setErrorMessage(message);
       setStatus("error");
+      notifyParent("error", message);
       toast.error("Submission failed", { description: "Check the endpoint and try again." });
     }
   }
