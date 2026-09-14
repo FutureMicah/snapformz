@@ -42,6 +42,12 @@ function Index() {
     setStatus("capturing");
 
     try {
+      const destination = endpoint.trim();
+      const destinationUrl = new URL(destination);
+      if (destinationUrl.protocol !== "https:") {
+        throw new Error("Use an HTTPS endpoint to transmit screenshots securely.");
+      }
+
       const pageWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
       const pageHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
       const dataUrl = await toPng(document.documentElement, {
@@ -56,7 +62,7 @@ function Index() {
 
       setPreview(dataUrl);
       setStatus("uploading");
-      const response = await fetch(endpoint, {
+      const response = await fetch(destination, {
         method: "POST",
         headers: apiKey.trim() ? { Authorization: `Bearer ${apiKey.trim()}` } : {},
         body: (() => {
@@ -163,7 +169,7 @@ function Index() {
               <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_12px_40px_-24px_var(--shadow-color)]">
                 <div className="flex items-center gap-2"><Settings2 className="size-4 text-primary" /><p className="text-sm font-semibold">Upload destination</p></div>
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">Use an HTTPS endpoint that accepts a multipart form upload.</p>
-                <label className="mt-4 grid gap-2 text-xs font-medium">Endpoint URL<Input value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder="https://your-review-system.com/upload" /></label>
+                <label className="mt-4 grid gap-2 text-xs font-medium">Endpoint URL<Input type="url" value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder="https://your-review-system.com/upload" /></label>
                 <label className="mt-4 grid gap-2 text-xs font-medium">Bearer token <span className="font-normal text-muted-foreground">(optional)</span><Input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Only used for this submission" /></label>
                 <p className="mt-3 text-[11px] leading-4 text-muted-foreground">Credentials stay in this browser session and are never saved by this tool.</p>
               </section>
