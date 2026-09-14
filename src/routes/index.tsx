@@ -35,6 +35,11 @@ function Index() {
   const [preview, setPreview] = useState("");
   const [lastSubmitted, setLastSubmitted] = useState("");
   const parentOriginRef = useRef<string>("*");
+  const statusRef = useRef(status);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   const isProcessing = status === "capturing" || status === "uploading";
 
@@ -69,7 +74,7 @@ function Index() {
         if (event.origin && event.origin !== "null") {
           parentOriginRef.current = event.origin;
         }
-        notifyParent(status, "Configuration received");
+        notifyParent(statusRef.current, "Configuration received");
       }
 
       if (event.data.type === "REVIEW_CAPTURE_TRIGGER") {
