@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { AlertCircle, ArrowUpRight, CheckCircle2, Clock3, FileImage, LockKeyhole, LoaderCircle, RotateCcw, Send, Settings2, ShieldCheck, Sparkles } from "lucide-react";
 import { createFileRoute } from "@tanstack/react-router";
