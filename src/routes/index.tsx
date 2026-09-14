@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { AlertCircle, ArrowUpRight, CheckCircle2, Clock3, FileImage, LockKeyhole, LoaderCircle, RotateCcw, Send, Settings2, ShieldCheck, Sparkles } from "lucide-react";
 import { createFileRoute } from "@tanstack/react-router";
@@ -34,12 +34,63 @@ function Index() {
   const [errorMessage, setErrorMessage] = useState("");
   const [preview, setPreview] = useState("");
   const [lastSubmitted, setLastSubmitted] = useState("");
+  const parentOriginRef = useRef<string>("*");
+  const statusRef = useRef(status);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   const isProcessing = status === "capturing" || status === "uploading";
+
+  function notifyParent(nextStatus: typeof status, message?: string) {
+    if (typeof window === "undefined") return;
+    window.parent.postMessage(
+      {
+        type: "REVIEW_CAPTURE_STATUS",
+        payload: {
+          status: nextStatus,
+          message,
+          timestamp: new Date().toISOString(),
+          pageUrl: window.location.href,
+        },
+      },
+      parentOriginRef.current
+    );
+  }
+
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (!event.data || typeof event.data !== "object") return;
+
+      if (event.data.type === "REVIEW_CAPTURE_CONFIG") {
+        const payload = event.data.payload ?? {};
+        if (typeof payload.endpoint === "string") setEndpoint(payload.endpoint);
+        if (typeof payload.apiKey === "string") setApiKey(payload.apiKey);
+        if (typeof payload.reviewer === "string") setReviewer(payload.reviewer);
+        if (typeof payload.notes === "string") setNotes(payload.notes);
+        if (typeof payload.includeMetadata === "boolean") setIncludeMetadata(payload.includeMetadata);
+        if (typeof payload.hideSettings === "boolean") setShowSettings(!payload.hideSettings);
+        if (event.origin && event.origin !== "null") {
+          parentOriginRef.current = event.origin;
+        }
+        notifyParent(statusRef.current, "Configuration received");
+      }
+
+      if (event.data.type === "REVIEW_CAPTURE_TRIGGER") {
+        captureAndSubmit();
+      }
+    }
+
+    window.addEventListener("message", handleMessage);
+    notifyParent("idle", "Review Capture iframe ready");
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
   async function captureAndSubmit() {
     setErrorMessage("");
     setStatus("capturing");
+    notifyParent("capturing", "Capturing full-page screenshot");
 
     try {
       const destination = endpoint.trim();
@@ -62,6 +113,7 @@ function Index() {
 
       setPreview(dataUrl);
       setStatus("uploading");
+      notifyParent("uploading", `Uploading screenshot to ${destinationUrl.hostname}`);
       const response = await fetch(destination, {
         method: "POST",
         headers: apiKey.trim() ? { Authorization: `Bearer ${apiKey.trim()}` } : {},
@@ -85,10 +137,13 @@ function Index() {
       if (!response.ok) throw new Error(`The review endpoint returned ${response.status}.`);
       setLastSubmitted(new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
       setStatus("success");
+      notifyParent("success", "Screenshot submitted successfully");
       toast.success("Screenshot submitted successfully");
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "The screenshot could not be submitted.");
+      const message = error instanceof Error ? error.message : "The screenshot could not be submitted.";
+      setErrorMessage(message);
       setStatus("error");
+      notifyParent("error", message);
       toast.error("Submission failed", { description: "Check the endpoint and try again." });
     }
   }
