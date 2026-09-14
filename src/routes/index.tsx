@@ -58,7 +58,7 @@ function Index() {
       setStatus("uploading");
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: apiKey.trim() ? { Authorization: `Bearer ${apiKey.trim()}` } : undefined,
+        headers: apiKey.trim() ? { Authorization: `Bearer ${apiKey.trim()}` } : {},
         body: (() => {
           const formData = new FormData();
           const binary = atob(dataUrl.split(",")[1] ?? "");
